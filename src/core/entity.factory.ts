@@ -1,6 +1,5 @@
 import { Repository } from './repository';
-import { DirectThreadEntity } from '../entities';
-import { ProfileEntity } from '../entities/profile.entity';
+import { DirectThreadEntity, ProfileEntity } from '../entities';
 
 export class EntityFactory extends Repository {
   public directThread(id: string | string[]): DirectThreadEntity {
@@ -12,6 +11,7 @@ export class EntityFactory extends Repository {
     }
     return thread;
   }
+
   public profile(pk: string): ProfileEntity {
     const thread = new ProfileEntity(this.client);
     thread.pk = pk;

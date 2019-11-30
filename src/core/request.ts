@@ -8,14 +8,17 @@ import { IgApiClient } from './client';
 import {
   IgActionSpamError,
   IgCheckpointError,
+  IgClientError,
+  IgInactiveUserError,
   IgLoginRequiredError,
   IgNetworkError,
   IgNotFoundError,
   IgPrivateUserError,
   IgResponseError,
   IgSentryBlockError,
+  IgUserHasLoggedOutError,
 } from '../errors';
-import { IgResponse } from '../types/ig-response';
+import { IgResponse } from '../types';
 import JSONbigInt = require('json-bigint');
 
 const JSONbigString = JSONbigInt({ storeAsString: true });
@@ -29,6 +32,7 @@ interface SignedPost {
 
 export class Request {
   end$ = new Subject();
+  error$ = new Subject<IgClientError>();
   attemptOptions: Partial<AttemptOptions<any>> = {
     maxAttempts: 1,
   };
@@ -49,7 +53,7 @@ export class Request {
     return resolveWithFullResponse ? response : response.body;
   }
 
-  public async send<T = any>(userOptions: Options): Promise<IgResponse<T>> {
+  public async send<T = any>(userOptions: Options, onlyCheckHttpStatus?: boolean): Promise<IgResponse<T>> {
     const options = defaultsDeep(
       userOptions,
       {
@@ -65,12 +69,14 @@ export class Request {
       },
       this.defaults,
     );
-    let response = await this.faultTolerantRequest(options);
+    const response = await this.faultTolerantRequest(options);
     process.nextTick(() => this.end$.next());
-    if (response.body.status === 'ok') {
+    if (response.body.status === 'ok' || (onlyCheckHttpStatus && response.statusCode === 200)) {
       return response;
     }
-    throw this.handleResponseError(response);
+    const error = this.handleResponseError(response);
+    process.nextTick(() => this.error$.next(error));
+    throw error;
   }
   public signature(data: string) {
     return createHmac('sha256', this.client.state.signatureKey)
@@ -100,7 +106,7 @@ export class Request {
     return `${signature}\n${body}\n`;
   }
 
-  private handleResponseError(response: Response) {
+  private handleResponseError(response: Response): IgClientError {
     const json = response.body;
     if (json.spam) {
       return new IgActionSpamError(response);
@@ -113,6 +119,9 @@ export class Request {
         this.client.state.checkpoint = json;
         return new IgCheckpointError(response);
       }
+      if (json.message === 'user_has_logged_out') {
+        return new IgUserHasLoggedOutError(response);
+      }
       if (json.message === 'login_required') {
         return new IgLoginRequiredError(response);
       }
@@ -122,6 +131,9 @@ export class Request {
     }
     if (json.error_type === 'sentry_block') {
       return new IgSentryBlockError(response);
+    }
+    if (json.error_type === 'inactive user') {
+      return new IgInactiveUserError(response);
     }
     return new IgResponseError(response);
   }
@@ -135,6 +147,7 @@ export class Request {
   }
 
   private getDefaultHeaders() {
+    // TODO: unquoted Host and Connection?!
     return {
       'User-Agent': this.client.state.appUserAgent,
       'X-Pigeon-Session-Id': this.client.state.pigeonSessionId,
@@ -146,6 +159,7 @@ export class Request {
       'X-IG-Connection-Type': this.client.state.connectionTypeHeader,
       'X-IG-Capabilities': this.client.state.capabilitiesHeader,
       'X-IG-App-ID': this.client.state.fbAnalyticsApplicationId,
+      'X-IG-VP9-Capable': true,
       'Accept-Language': this.client.state.language.replace('_', '-'),
       Host: 'i.instagram.com',
       'Accept-Encoding': 'gzip',

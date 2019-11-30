@@ -9,12 +9,45 @@ export class FriendshipRepository extends Repository {
     return body;
   }
 
+  async showMany(userIds: string[] | number[]) {
+    const { body } = await this.client.request.send({
+      url: `/api/v1/friendships/show_many/`,
+      method: 'POST',
+      form: {
+        _csrftoken: this.client.state.cookieCsrfToken,
+        user_ids: userIds.join(),
+        _uuid: this.client.state.uuid,
+      },
+    });
+    return body.friendship_statuses;
+  }
+
+  async block(id: string | number, mediaIdAttribution?: string) {
+    return this.change('block', id, mediaIdAttribution);
+  }
+
+  async unblock(id: string | number, mediaIdAttribution?: string) {
+    return this.change('unblock', id, mediaIdAttribution);
+  }
+
   async create(id: string | number, mediaIdAttribution?: string) {
     return this.change('create', id, mediaIdAttribution);
   }
 
   async destroy(id: string | number, mediaIdAttribution?: string) {
     return this.change('destroy', id, mediaIdAttribution);
+  }
+
+  async approve(id: string | number, mediaIdAttribution?: string) {
+    return this.change('approve', id, mediaIdAttribution);
+  }
+
+  async deny(id: string | number, mediaIdAttribution?: string) {
+    return this.change('ignore', id, mediaIdAttribution);
+  }
+
+  async removeFollower(id: string | number) {
+    return this.change('remove_follower', id);
   }
 
   private async change(action: string, id: string | number, mediaIdAttribution?: string) {

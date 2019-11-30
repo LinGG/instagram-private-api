@@ -25,6 +25,17 @@ import { ConsentRepository } from '../repositories/consent.repository';
 import { UserRepository } from '../repositories/user.repository';
 import { TagRepository } from '../repositories/tag.repository';
 import { SearchService } from '../services/search.service';
+import { StoryService } from '../services/story.service';
+import { LiveRepository } from '../repositories/live.repository';
+import { LocationRepository } from '../repositories/location.repository';
+import { LocationSearch } from '../repositories/location-search.repository';
+import { MusicRepository } from '../repositories/music.repository';
+import { NewsRepository } from '../repositories/news.repository';
+import { HighlightsRepository } from '../repositories/highlights.repository';
+import { AdsRepository } from '../repositories/ads.repository';
+import { InsightsService } from '../services/insights.service';
+import { RestrictActionRepository } from '../repositories/restrict-action.repository';
+import { AddressBookRepository } from '../repositories/address-book.repository';
 
 export class IgApiClient {
   public state = new State();
@@ -52,8 +63,24 @@ export class IgApiClient {
   public upload = new UploadRepository(this);
   public user = new UserRepository(this);
   public zr = new ZrRepository(this);
+  public live = new LiveRepository(this);
+  public location = new LocationRepository(this);
+  public locationSearch = new LocationSearch(this);
+  public music = new MusicRepository(this);
+  public news = new NewsRepository(this);
+  public highlights = new HighlightsRepository(this);
+  public ads = new AdsRepository(this);
+  public restrictAction = new RestrictActionRepository(this);
+  public addressBook = new AddressBookRepository(this);
   /* Services */
   public publish = new PublishService(this);
   public search = new SearchService(this);
   public simulate = new SimulateService(this);
+  public story = new StoryService(this);
+  public insights = new InsightsService(this);
+
+  public destroy() {
+    this.request.error$.complete();
+    this.request.end$.complete();
+  }
 }
